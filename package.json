@@ -1,0 +1,45 @@
+{
+  "name": "ankimaster",
+  "version": "0.1.0",
+  "description": "Anki MCP server with learning intelligence and source-to-cards pipeline",
+  "type": "module",
+  "bin": {
+    "ankimaster": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "inspector": "npx @modelcontextprotocol/inspector dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.28.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.0"
+  },
+  "keywords": [
+    "anki",
+    "mcp",
+    "flashcards",
+    "spaced-repetition",
+    "learning",
+    "ankiconnect"
+  ],
+  "author": "gabrielrf97",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gabrielrf97/ankimaster.git"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
