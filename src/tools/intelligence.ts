@@ -158,8 +158,10 @@ async function getDeckStats(
     ? `"deck:${deckName}" prop:ivl>=1`
     : "prop:ivl>=1";
   const cardIds = await anki.findCards(query);
+  const sampleSize = 500;
+  const sampled = cardIds.length > sampleSize;
   const cards = cardIds.length > 0
-    ? await anki.cardsInfo(cardIds.slice(0, 500))
+    ? await anki.cardsInfo(cardIds.slice(0, sampleSize))
     : [];
 
   const easeValues = cards.map((c) => c.factor / 10); // Convert to percentage
@@ -170,6 +172,8 @@ async function getDeckStats(
   const youngCards = cards.filter((c) => c.interval > 0 && c.interval < 21);
 
   return json({
+    sampled,
+    ...(sampled ? { sampleSize, totalCards: cardIds.length } : {}),
     decks: basicStats,
     cardBreakdown: {
       total: cards.length,
@@ -210,8 +214,11 @@ async function getReviewStats(
 
   // Get review cards in this deck
   const cardIds = await anki.findCards(`"deck:${deck}" prop:ivl>=1`);
+  const cardSampleSize = 500;
+  const reviewSampleSize = 200;
+  const cardsSampled = cardIds.length > cardSampleSize;
   const cards = cardIds.length > 0
-    ? await anki.cardsInfo(cardIds.slice(0, 500))
+    ? await anki.cardsInfo(cardIds.slice(0, cardSampleSize))
     : [];
 
   // Get review logs for retention estimation
@@ -246,8 +253,10 @@ async function getReviewStats(
 
   return json({
     deck,
+    sampled: cardsSampled,
+    ...(cardsSampled ? { cardSampleSize, reviewSampleSize, totalCards: cardIds.length } : {}),
     dailyReviews: recentReviews,
-    totalCardsReviewed: cards.length,
+    totalCardsAnalyzed: cards.length,
     estimatedRetentionPercent: estimatedRetention,
     easeBuckets,
     avgEasePercent: cards.length > 0
@@ -347,13 +356,19 @@ async function findWeakAreas(
     ? `"deck:${deck}" prop:ivl>=1`
     : "prop:ivl>=1";
   const cardIds = await anki.findCards(query);
+  const weakAreaSampleSize = 1000;
+  const sampled = cardIds.length > weakAreaSampleSize;
   const cards = cardIds.length > 0
-    ? await anki.cardsInfo(cardIds.slice(0, 1000))
+    ? await anki.cardsInfo(cardIds.slice(0, weakAreaSampleSize))
     : [];
 
   if (cards.length === 0) {
     return json({ message: "No reviewed cards found", groupBy });
   }
+
+  const sampledMeta = sampled
+    ? { sampled: true, sampleSize: weakAreaSampleSize, totalCards: cardIds.length }
+    : { sampled: false };
 
   if (groupBy === "deck") {
     const deckGroups = new Map<
@@ -389,7 +404,7 @@ async function findWeakAreas(
       }))
       .sort((a, b) => b.difficultyScore - a.difficultyScore);
 
-    return json({ groupBy: "deck", areas });
+    return json({ groupBy: "deck", ...sampledMeta, areas });
   }
 
   // Group by tag
@@ -440,7 +455,7 @@ async function findWeakAreas(
     }))
     .sort((a, b) => b.difficultyScore - a.difficultyScore);
 
-  return json({ groupBy: "tag", areas });
+  return json({ groupBy: "tag", ...sampledMeta, areas });
 }
 
 async function analyzeCards(

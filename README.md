@@ -45,7 +45,7 @@ Then point your MCP client to `node dist/index.js`.
 
 ## Tools
 
-### Core (8 tools)
+### Core (9 tools)
 
 | Tool | Description |
 |------|-------------|

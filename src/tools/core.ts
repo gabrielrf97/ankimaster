@@ -227,38 +227,42 @@ export async function handleCoreTool(
       };
       if (!notes?.length) throw new Error("Notes array is required");
 
-      const results: {
-        success: boolean;
-        noteId?: number | null;
-        error?: string;
-        index: number;
+      // Ensure all decks exist and normalize fields
+      const deckCache = new Set(await anki.deckNames());
+      const fieldCache = new Map<string, string[]>();
+      const prepared: {
+        deckName: string;
+        modelName: string;
+        fields: Record<string, string>;
+        tags?: string[];
       }[] = [];
 
-      for (let i = 0; i < notes.length; i++) {
-        const note = notes[i];
-        try {
-          await ensureDeck(anki, note.deck);
-          const modelFields = await anki.modelFieldNames(note.type);
-          const normalized = normalizeFields(
-            modelFields,
-            sanitizeFields(note.fields)
-          );
-          const noteId = await anki.addNote({
-            deckName: note.deck,
-            modelName: note.type,
-            fields: normalized,
-            tags: note.tags,
-            options: { allowDuplicate },
-          });
-          results.push({ success: true, noteId, index: i });
-        } catch (err) {
-          results.push({
-            success: false,
-            error: err instanceof Error ? err.message : String(err),
-            index: i,
-          });
+      for (const note of notes) {
+        if (!deckCache.has(note.deck)) {
+          await anki.createDeck(note.deck);
+          deckCache.add(note.deck);
         }
+        if (!fieldCache.has(note.type)) {
+          fieldCache.set(note.type, await anki.modelFieldNames(note.type));
+        }
+        const modelFields = fieldCache.get(note.type)!;
+        prepared.push({
+          deckName: note.deck,
+          modelName: note.type,
+          fields: normalizeFields(modelFields, sanitizeFields(note.fields)),
+          tags: note.tags,
+        });
       }
+
+      // Use bulk API
+      const noteIds = await anki.addNotes(prepared);
+
+      const results = noteIds.map((id, i) => ({
+        success: id !== null,
+        noteId: id,
+        index: i,
+        ...(id === null ? { error: "Failed to create (duplicate or invalid)" } : {}),
+      }));
 
       return json({
         results,
@@ -306,7 +310,7 @@ export async function handleCoreTool(
 
       await anki.updateNoteFields({ id, fields: sanitizeFields(fields) });
       if (tags) {
-        await anki.updateNoteTags(id, tags.join(" "));
+        await anki.replaceTags(id, info[0].tags, tags);
       }
       return json({ success: true, noteId: id });
     }

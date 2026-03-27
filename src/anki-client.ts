@@ -192,11 +192,24 @@ export class AnkiClient {
     await this.invokeWithRetry("updateNoteFields", { note });
   }
 
-  async updateNoteTags(
-    note: number,
-    tags: string
+  async replaceTags(
+    noteId: number,
+    oldTags: string[],
+    newTags: string[]
   ): Promise<void> {
-    await this.invokeWithRetry("addTags", { notes: [note], tags });
+    // Remove all existing tags, then add new ones
+    if (oldTags.length > 0) {
+      await this.invokeWithRetry("removeTags", {
+        notes: [noteId],
+        tags: oldTags.join(" "),
+      });
+    }
+    if (newTags.length > 0) {
+      await this.invokeWithRetry("addTags", {
+        notes: [noteId],
+        tags: newTags.join(" "),
+      });
+    }
   }
 
   async deleteNotes(notes: number[]): Promise<void> {
