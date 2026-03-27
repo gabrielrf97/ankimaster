@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 /**
  * ankimaster — Anki MCP server with learning intelligence
  * and source-to-cards pipeline.
