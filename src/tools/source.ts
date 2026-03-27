@@ -139,48 +139,46 @@ async function createSourceCards(
     `source_title:${slugify(source.title)}`,
   ];
 
-  const results: {
-    success: boolean;
-    noteId?: number | null;
-    error?: string;
-    index: number;
+  // Ensure all decks exist and normalize fields (with caching)
+  const deckCache = new Set(await anki.deckNames());
+  const fieldCache = new Map<string, string[]>();
+  const prepared: {
+    deckName: string;
+    modelName: string;
+    fields: Record<string, string>;
+    tags: string[];
   }[] = [];
 
-  for (let i = 0; i < notes.length; i++) {
-    const note = notes[i];
-    try {
-      // Ensure deck exists
-      const decks = await anki.deckNames();
-      if (!decks.includes(note.deck)) {
-        await anki.createDeck(note.deck);
-      }
-
-      // Merge source tags with user tags
-      const allTags = [...sourceTags, ...(note.tags ?? [])];
-
-      const modelFields = await anki.modelFieldNames(note.type);
-      const normalized: Record<string, string> = {};
-      for (const field of modelFields) {
-        normalized[field] =
-          note.fields[field] ?? note.fields[field.toLowerCase()] ?? "";
-      }
-
-      const noteId = await anki.addNote({
-        deckName: note.deck,
-        modelName: note.type,
-        fields: normalized,
-        tags: allTags,
-      });
-
-      results.push({ success: true, noteId, index: i });
-    } catch (err) {
-      results.push({
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-        index: i,
-      });
+  for (const note of notes) {
+    if (!deckCache.has(note.deck)) {
+      await anki.createDeck(note.deck);
+      deckCache.add(note.deck);
     }
+    if (!fieldCache.has(note.type)) {
+      fieldCache.set(note.type, await anki.modelFieldNames(note.type));
+    }
+    const modelFields = fieldCache.get(note.type)!;
+    const normalized: Record<string, string> = {};
+    for (const field of modelFields) {
+      normalized[field] =
+        note.fields[field] ?? note.fields[field.toLowerCase()] ?? "";
+    }
+    prepared.push({
+      deckName: note.deck,
+      modelName: note.type,
+      fields: normalized,
+      tags: [...sourceTags, ...(note.tags ?? [])],
+    });
   }
+
+  const noteIds = await anki.addNotes(prepared);
+
+  const results = noteIds.map((id, i) => ({
+    success: id !== null,
+    noteId: id,
+    index: i,
+    ...(id === null ? { error: "Failed to create (duplicate or invalid)" } : {}),
+  }));
 
   return json({
     source: {
