@@ -34,7 +34,26 @@ cd ankimaster
 npm install && npm run build
 ```
 
-Then point your MCP client to `node dist/index.js`.
+Then add it to your MCP client. For **Claude Code**:
+
+```bash
+claude mcp add ankimaster -- node $(pwd)/dist/index.js
+```
+
+For **Claude Desktop**, add to your config file (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS, `%APPDATA%\Claude\claude_desktop_config.json` on Windows):
+
+```json
+{
+  "mcpServers": {
+    "ankimaster": {
+      "command": "node",
+      "args": ["/absolute/path/to/ankimaster/dist/index.js"]
+    }
+  }
+}
+```
+
+Replace `/absolute/path/to/ankimaster` with the actual path where you cloned the repo.
 
 ### CLI options
 
